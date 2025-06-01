@@ -1,13 +1,12 @@
 exten => 3000,1,Answer()
- same => n,Set(FILE_ID=${STRFTIME(${EPOCH},,%s)}
- same => n,Set(NEW_FLAG_FILE=/tmp/assist_session_started_${FILE_ID})
+ same => n,Set(NEW_FLAG_FILE=/tmp/assist_session_started_${UNIQUEID})
 
 ; -----------------------------
 ; Start of loop
  same => n,Playback(${SHELL(/opt/yourdir/tts.py en "Hello this is sascha")})
- same => n(loop),Set(RECORD_FILE=/tmp/rec_${FILE_ID}.wav)
- same => n,Set(TRANSCRIPT_FILE=/tmp/stt_${FILE_ID}.txt)
- same => n,Set(RESPONSE_FILE=/tmp/assist_response_${FILE_ID}.txt)
+ same => n(loop),Set(RECORD_FILE=/tmp/rec_${UNIQUEID}.wav)
+ same => n,Set(TRANSCRIPT_FILE=/tmp/stt_${UNIQUEID}.txt)
+ same => n,Set(RESPONSE_FILE=/tmp/assist_response_${UNIQUEID}.txt)
 
 ; Record voice input
  same => n,Record(${RECORD_FILE},3,45,k)
@@ -38,6 +37,7 @@ exten => 3000,1,Answer()
 
 ; Repeat loop
  same => n,Wait(1)
+ same => n,System(rm ${RECORD_FILE} ${TRANSCRIPT_FILE} ${RESPONSE_FILE})
  same => n,Goto(loop)
 
 same => n(hangup),Hangup()
