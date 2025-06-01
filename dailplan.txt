@@ -1,0 +1,44 @@
+exten => 3000,1,Answer()
+ same => n,Set(FILE_ID=${STRFTIME(${EPOCH},,%s)}
+ same => n,Set(NEW_FLAG_FILE=/tmp/assist_session_started_${FILE_ID})
+
+; -----------------------------
+; Start of loop
+ same => n,Playback(${SHELL(/opt/yourdir/tts.py en "Hello this is sascha")})
+ same => n(loop),Set(RECORD_FILE=/tmp/rec_${FILE_ID}.wav)
+ same => n,Set(TRANSCRIPT_FILE=/tmp/stt_${FILE_ID}.txt)
+ same => n,Set(RESPONSE_FILE=/tmp/assist_response_${FILE_ID}.txt)
+
+; Record voice input
+ same => n,Record(${RECORD_FILE},3,45,k)
+ same => n,Playback(${SHELL(/opt/yourdir/tts.py en "processing.")})
+
+; Transcribe to text
+ same => n,TrySystem(/opt/yourdir/tts.py --lang en ${RECORD_FILE} ${TRANSCRIPT_FILE} || echo 'unknown' > ${TRANSCRIPT_FILE} &)
+
+; Wait for STT to complete
+ same => n(wait_txt),TrySystem(test -s ${TRANSCRIPT_FILE})
+ same => n,GotoIf($["${SYSTEMSTATUS}" = "SUCCESS"]?send_to_agent)
+ same => n,Wait(0.5)
+ same => n,Goto(wait_txt)
+
+; Read transcript
+ same => n(send_to_agent),Set(TRANSCRIPT=${SHELL(cat ${TRANSCRIPT_FILE})})
+ same => n,NoOp(Transcript: ${TRANSCRIPT})
+
+; If NEW_FLAG_FILE doesn't exist, use --new, then create the flag
+ same => n,ExecIf($["${STAT(e,${NEW_FLAG_FILE})}" = "1"]?TrySystem(/opt/yourdir/assist.py --cli --new -a 01hjm970z6c28xctwvzv3vrgws "${TRANSCRIPT}" > ${RESPONSE_FILE}))
+ same => n,ExecIf($["${STAT(e,${NEW_FLAG_FILE})}" = "1"]?TrySystem(touch ${NEW_FLAG_FILE}))
+ same => n,ExecIf($["${STAT(e,${NEW_FLAG_FILE})}" = "0"]?TrySystem(/opt/yourdir/assist.py --cli -a 01hjm970z6c28xctwvzv3vrgws "${TRANSCRIPT}" > ${RESPONSE_FILE}))
+
+; Read assistant response and say it
+ same => n,Set(ASSIST_OUT=${SHELL(cat ${RESPONSE_FILE} | tr -d '"'\''*[]')})
+ same => n,NoOp(Assistant said: ${ASSIST_OUT})
+ same => n,Playback(${SHELL(/opt/yourdir/tts.py en "${ASSIST_OUT}")})
+
+; Repeat loop
+ same => n,Wait(1)
+ same => n,Goto(loop)
+
+same => n(hangup),Hangup()
+
