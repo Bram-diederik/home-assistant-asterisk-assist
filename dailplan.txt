@@ -13,7 +13,7 @@ exten => 3000,1,Answer()
  same => n,Playback(${SHELL(/opt/yourdir/tts.py en "processing.")})
 
 ; Transcribe to text
- same => n,TrySystem(/opt/yourdir/tts.py --lang en ${RECORD_FILE} ${TRANSCRIPT_FILE} || echo 'unknown' > ${TRANSCRIPT_FILE} &)
+ same => n,TrySystem(/opt/yourdir/tts.py --lang en ${RECORD_FILE} ${TRANSCRIPT_FILE} || echo '!null!' > ${TRANSCRIPT_FILE} &)
 
 ; Wait for STT to complete
  same => n(wait_txt),TrySystem(test -s ${TRANSCRIPT_FILE})
@@ -24,6 +24,9 @@ exten => 3000,1,Answer()
 ; Read transcript
  same => n(send_to_agent),Set(TRANSCRIPT=${SHELL(cat ${TRANSCRIPT_FILE})})
  same => n,NoOp(Transcript: ${TRANSCRIPT})
+
+ same => n,GotoIf($[${REGEX("!null!" ${TRANSCRIPT})}]?loop)
+
 
 ; If NEW_FLAG_FILE doesn't exist, use --new, then create the flag
  same => n,ExecIf($["${STAT(e,${NEW_FLAG_FILE})}" = "1"]?TrySystem(/opt/yourdir/assist.py --cli --new -a 01hjm970z6c28xctwvzv3vrgws "${TRANSCRIPT}" > ${RESPONSE_FILE}))
